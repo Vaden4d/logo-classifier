@@ -1,0 +1,15 @@
+.ipynb_checkpoints
+__pycache__
+.env
+.idea
+.vscode
+.DS_Store
+*.pyc
+*.zip
+*.csv
+*.ckpt
+*.ipynb
+Notebook.ipynb
+test_task_logo_dataset/
+lightning_logs/
+models/
