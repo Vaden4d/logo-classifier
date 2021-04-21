@@ -1,7 +1,7 @@
 # Logo classifier
 Almost unsupervised logo classifier
 
-The models discriminate logo into two categories: real logo and no logo (dataset consists of logo proposals from the previous pipelines). Classification was done via supervised and semi-supervised approaches on the weakly generated labels from data. For more details of the preprocessing steps, see **Preprocessing.ipynb**. 
+The models discriminate logo into two categories: real logo and no logo (dataset consists of logo proposals from the previous pipelines). Classification was done via supervised and semi-supervised approaches on the weakly generated labels from data. For more details of the preprocessing steps, see **Preprocessing.ipynb** or **Preprocessing.html**. 
 
 Weak Precision and weak Recall - metrics on the weak labels - are monitored during training of the model, the results reported on the test dataset. For validation - validation Precision and validation Recall - were used manually labeled ~2000 pictures.
 
