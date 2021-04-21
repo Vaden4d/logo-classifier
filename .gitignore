@@ -8,8 +8,8 @@ __pycache__
 *.zip
 *.csv
 *.ckpt
-*.ipynb
-Notebook.ipynb
+Blacknote.ipynb
+Threshold tuning.ipynb
 test_task_logo_dataset/
 lightning_logs/
 models/

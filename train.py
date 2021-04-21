@@ -38,6 +38,12 @@ parser.add_argument('--target_column', default='weak_label', type=str,
 parser.add_argument('--validate', action="store_true",
                     help="Validate model on labeled dataset"
 )
+parser.add_argument('--validation_csv', default="labeled_part.csv",
+                    help="Validation .csv file with labeled target"
+)
+parser.add_argument('--target_validation', default="label",
+                    help="Name of target column in validation dataset"
+)
 parser.add_argument('--test_size', default=0.2, type=float,
                     help='Test dataset size'
                     )
@@ -83,7 +89,6 @@ train_labeled_loader, valid_labeled_loader = get_loaders(
 if args.ssl:
     dataset_unlabeled = ImageDataset(unlabeled, train_transform, target_column=None)
 
-#loss = nn.CrossEntropyLoss()
 loss = LabelSmoothingLoss(num_classes=2, smoothing=0.2, weight=None)
 
 if args.ssl:
@@ -96,7 +101,7 @@ model_checkpoint = ModelCheckpoint(monitor="val_acc_f1",
                                    verbose=True,
                                    dirpath="models/",
                                    mode="max",
-                                   filename="{epoch}_{val_loss:.4f}")
+                                   filename="{epoch}_{val_acc_f1:.4f}")
 
 if args.ssl:
     train_loader = MixMatchLoader(
@@ -128,8 +133,8 @@ display_metrics(test_labeled[args.target_column], test_labeled["pred"], threshol
 
 if args.validate:
 
-    validation = pd.read_csv("labeled_part.csv")
-    validation["label"] = validation["label"].apply(lambda x: 1 if x == "logo" else 0)
+    validation = pd.read_csv(args.validation_csv)
+    validation[args.target_validation] = validation[args.target_validation].apply(lambda x: 1 if x == "logo" else 0)
 
     labeled_loader = get_loader(
         validation,
@@ -141,6 +146,7 @@ if args.validate:
     )
 
     validation["pred"] = predict_on_loader(labeled_loader, model, device)
+    validation.to_csv("labeled_with_preds.csv", index=False)
     print("Metrics results on the labeled sample with strong labels:")
     display_metrics(validation["label"], validation["pred"], threshold=0.5)
 

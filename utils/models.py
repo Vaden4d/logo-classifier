@@ -71,7 +71,7 @@ class EfficientNetSSL(pl.LightningModule):
             criterion_labeled=self.criterion_labeled,
             output_transform=nn.Softmax(dim=-1),
             K=2,
-            weight_unlabeled=100.0,
+            weight_unlabeled=1.0,
             criterion_unlabeled=nn.MSELoss()
         )
 
