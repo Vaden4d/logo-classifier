@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 
 class ImageDataset(Dataset):
+    """PyTorch dataset - retieve images using .csv file"""
     def __init__(self, csv, transform, target_column):
         super().__init__()
         self.csv = csv

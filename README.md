@@ -1,9 +1,19 @@
 # Logo classifier
 Almost unsupervised logo classifier
 
-The models discriminate logotypes into two categories: logo and no logo (misdetection on the previous step of pipeline). Classification was done via supervised and semi-supervised approaches on the weakly generated labels from data. For more details of the preprocessing steps, see **Preprocessing.ipynb**. 
+The models discriminate logo into two categories: real logo and no logo (dataset consists of logo proposals from the previous pipelines). Classification was done via supervised and semi-supervised approaches on the weakly generated labels from data. For more details of the preprocessing steps, see **Preprocessing.ipynb**. 
 
-Weak Precision and weak Recall -- metrics on the weak labels -- are monitored during training of the model, the results reported on the test dataset. For validation -- validation Precision and validation Recall -- , were used manually labeled ~2000 pictures.
+Weak Precision and weak Recall - metrics on the weak labels - are monitored during training of the model, the results reported on the test dataset. For validation - validation Precision and validation Recall - were used manually labeled ~2000 pictures.
+
+To run training with different, see arguments in the **train.py** file. 
+For example, run the supervised training and validate in on the labeled part (with filename is default).
+```
+python train.py --validate --csv datasets/mixed.csv --target_column weak_label 
+```
+Semi-supervised training pipeline:
+```
+python train.py --ssl --validate --csv datasets/mixed.csv --target_column weak_label 
+```
 
 See **Report.ipynb** for more details of the training pipelines.
 

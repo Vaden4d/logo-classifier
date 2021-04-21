@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class LabelSmoothingLoss(nn.Module):
+    """Cross Entropy with Label Smoothing"""
     def __init__(self, num_classes, smoothing=0.0, dim=-1, weight=None):
         super(LabelSmoothingLoss, self).__init__()
         self.confidence = 1.0 - smoothing

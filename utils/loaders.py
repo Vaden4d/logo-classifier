@@ -7,6 +7,7 @@ def get_loader(csv,
                 batch_size,
                 num_workers,
                 shuffle):
+    """Get Pytorch loader"""
     dataset = ImageDataset(csv,
                             target_column=target_column,
                             transform=transform)
@@ -26,7 +27,7 @@ def get_loaders(train,
                 num_workers,
                 shuffle
                 ):
-
+    """Get Pytorch loaders"""
     train_dataset = ImageDataset(train, 
                                 target_column=target_column,
                                 transform=train_transform)

@@ -62,6 +62,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 args.gpu = args.gpu if torch.cuda.is_available() else 0
 seed_everything(args.random_state)
 
+# target_column has unique values in set -1, 0, 1
+# -1 corresponds to the unlabeled data
 df = pd.read_csv(args.csv)
 labeled = df[df[args.target_column] > -1]
 if args.ssl:
@@ -104,6 +106,7 @@ model_checkpoint = ModelCheckpoint(monitor="val_acc_f1",
                                    filename="{epoch}_{val_acc_f1:.4f}")
 
 if args.ssl:
+    # SSL approach changes only train dataloader and model class
     train_loader = MixMatchLoader(
         train_labeled_loader,
         dataset_unlabeled,

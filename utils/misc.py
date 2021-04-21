@@ -15,6 +15,10 @@ def seed_everything(seed):
     torch.backends.cudnn.benchmark = True
 
 def predict_on_loader(loader, model, device):
+    """Make prediction over custom loader
+    Used to obtain predictions on separate
+    validaiton data (not part of training pipeline)
+    """
     model.eval()
     model = model.to(device)
     
