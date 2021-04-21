@@ -6,8 +6,8 @@ __pycache__
 .DS_Store
 *.pyc
 *.zip
-*.csv
 *.ckpt
+raw/
 Blacknote.ipynb
 Threshold tuning.ipynb
 test_task_logo_dataset/

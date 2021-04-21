@@ -6,13 +6,13 @@ The models discriminate logo into two categories: real logo and no logo (dataset
 Weak Precision and weak Recall - metrics on the weak labels - are monitored during training of the model, the results reported on the test dataset. For validation - validation Precision and validation Recall - were used manually labeled ~2000 pictures.
 
 To run training with different, see arguments in the **train.py** file. 
-For example, run the supervised training and validate in on the labeled part (with filename is default).
+For example, run the supervised training and validate in on the labeled part.
 ```
-python train.py --validate --csv datasets/mixed.csv --target_column weak_label 
+python train.py --validate --csv datasets/mixed.csv --target_column mixed_label --validation_csv labeled_part.csv
 ```
 Semi-supervised training pipeline:
 ```
-python train.py --ssl --validate --csv datasets/mixed.csv --target_column weak_label 
+python train.py --ssl --validate --csv datasets/mixed.csv --target_column mixed_label --validation_csv labeled_part.csv
 ```
 
 See **Report.ipynb** for more details of the training pipelines.
