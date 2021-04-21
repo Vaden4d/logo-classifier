@@ -5,9 +5,9 @@ import pandas as pd
 import torch
 import torch.nn as nn
 
-from utils.models import EfficientNetModel
+from utils.models import EfficientNetModel, EfficientNetSSL
 from utils.transforms import get_valid_transform
-from utils.loaders import get_valid_loader
+from utils.loaders import get_loader
 
 from sklearn.metrics import f1_score, confusion_matrix, precision_score, recall_score
 
@@ -19,7 +19,7 @@ df = pd.read_csv("labeled_part.csv")
 df["label"] = df["label"].apply(lambda x: 1 if x == "logo" else 0)
 
 valid_transform = get_valid_transform(img_size=224)
-valid_loader = get_valid_loader(
+valid_loader = get_loader(
     df,
     "label",
     valid_transform,
@@ -28,8 +28,8 @@ valid_loader = get_valid_loader(
     shuffle=False
 )
 
-model = EfficientNetModel(loss=nn.CrossEntropyLoss(), num_classes=2)
-model.load_from_checkpoint("epoch=2_val_loss=0.6148.ckpt", loss=nn.CrossEntropyLoss())
+model = EfficientNetSSL(loss=nn.CrossEntropyLoss(), num_classes=2)
+model.load_from_checkpoint("/Users/vaden4d/Downloads/epoch=19_val_loss=0.5169.ckpt", loss=nn.CrossEntropyLoss())
 model.eval()
 
 softmax = nn.Softmax(dim=-1)
@@ -37,7 +37,7 @@ pred = []
 with tqdm(ascii=True, leave=False, total=len(valid_loader)) as bar:
     for i, batch in enumerate(valid_loader):
 
-        images, y = batch["x"], batch["y"]
+        images, y = batch["features"], batch["targets"]
         with torch.no_grad():
 
             y_hat = model(images)

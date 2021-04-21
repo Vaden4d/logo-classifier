@@ -1,82 +1,146 @@
 import os
-import torch
+import argparse
 import pandas as pd
-from torch import nn
+from tqdm import tqdm
+
+import torch
+import torch.nn as nn
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint 
 
-from utils.models import EfficientNetModel
+from utils.models import EfficientNetModel, EfficientNetSSL
 from utils.transforms import get_transforms
-from utils.loaders import get_loaders
+from utils.loaders import get_loaders, get_loader
 from utils.losses import LabelSmoothingLoss
+from utils.misc import seed_everything, predict_on_loader
+from utils.visualization import display_metrics
+from utils.dataset import ImageDataset
 
-from tqdm import tqdm
+from mixmatch_pytorch import MixMatchLoader, get_mixmatch_loss
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, confusion_matrix, precision_score, recall_score
 
-batch_size = 32
+parser = argparse.ArgumentParser(description='PyTorch Lightning Training')
+parser.add_argument('--epochs', default=20, type=int, metavar='N',
+                    help='Number of total training epochs')
+parser.add_argument('--batch_size', default=32, type=int, metavar='N',
+                    help='Train and test batch size')   
+parser.add_argument('--gpu', default=1, type=int,
+                    help='0 if CPU mode, 1 if GPU')
+parser.add_argument("--ssl", action="store_true",
+                    help="Use semi-supervised pipeline")
+parser.add_argument('--csv', default='dataset_with_weak_labels.csv', type=str,
+                    help='Training .csv file with target column')
+parser.add_argument('--target_column', default='weak_label', type=str,
+                    help='Name of target column of the .csv file'
+                    )
+parser.add_argument('--validate', action="store_true",
+                    help="Validate model on labeled dataset"
+)
+parser.add_argument('--test_size', default=0.2, type=float,
+                    help='Test dataset size'
+                    )
+parser.add_argument('--image_size', default=224, type=int,
+                    help='Desired image size'
+)
+parser.add_argument('--num_workers', default=2, type=int,
+                    help='Number of processes for PyTorch data loaders'
+                    )
+parser.add_argument('--random_state', default=42, type=int,
+                    help='Random seed for all random operations'
+                    )
+args = parser.parse_args()
 
-df = pd.read_csv("dataset_with_labels.csv")
-df["weak_label"] = df.apply(lambda x: 0 if x.api_name == "no_logo" else 1 if x.n_images > 1 else -1, axis=1)
-df = df[df.weak_label > -1]
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+args.gpu = args.gpu if torch.cuda.is_available() else 0
+seed_everything(args.random_state)
 
-weight = df.groupby("weak_label").count()["path"] / df.shape[0]
+df = pd.read_csv(args.csv)
+labeled = df[df[args.target_column] > -1]
+if args.ssl:
+    print("Semi-supervised learning model is on...")
+    unlabeled = df[df[args.target_column] == -1]
+
+# weights to initialize bias of FC layer of classifier
+weight = labeled.groupby(args.target_column).count()["path"] / labeled.shape[0]
 weight = torch.Tensor(weight.values).log()
 
-train, test = train_test_split(df, test_size=0.2, stratify=df.weak_label, random_state=42)
+train_labeled, test_labeled = train_test_split(labeled, test_size=args.test_size, stratify=labeled[args.target_column], random_state=args.random_state)
 
-train_transform, valid_transform = get_transforms(img_size=224)
-train_loader, valid_loader = get_loaders(
-    train,
-    test,
+train_transform, valid_transform = get_transforms(img_size=args.image_size)
+train_labeled_loader, valid_labeled_loader = get_loaders(
+    train_labeled,
+    test_labeled,
     train_transform,
     valid_transform,
-    batch_size=batch_size,
-    num_workers=2,
+    target_column=args.target_column,
+    batch_size=args.batch_size,
+    num_workers=args.num_workers,
     shuffle=True
 )
 
-#ce = nn.CrossEntropyLoss()
+if args.ssl:
+    dataset_unlabeled = ImageDataset(unlabeled, train_transform, target_column=None)
+
+#loss = nn.CrossEntropyLoss()
 loss = LabelSmoothingLoss(num_classes=2, smoothing=0.2, weight=None)
 
-model = EfficientNetModel(num_classes=2, loss=loss, weight=weight)
-model_checkpoint = ModelCheckpoint(monitor="val_loss",
+if args.ssl:
+    print("Semi-supervised learning model is configured...")
+    model = EfficientNetSSL(loss=loss, num_classes=2, weight=weight)
+else:
+    model = EfficientNetModel(loss=loss, num_classes=2, weight=weight)
+
+model_checkpoint = ModelCheckpoint(monitor="val_acc_f1",
                                    verbose=True,
                                    dirpath="models/",
-                                   mode="min",
+                                   mode="max",
                                    filename="{epoch}_{val_loss:.4f}")
 
-trainer = pl.Trainer(gpus=1,
-                     max_epochs=20,
+if args.ssl:
+    train_loader = MixMatchLoader(
+        train_labeled_loader,
+        dataset_unlabeled,
+        model,
+        output_transform=nn.Softmax(dim=-1),
+        K=2,
+        T=0.5,
+        alpha=0.75
+    )
+else:
+    train_loader = train_labeled_loader
+
+trainer = pl.Trainer(gpus=args.gpu,
+                     max_epochs=args.epochs,
+                     precision=16,
                      auto_lr_find=True,
                      callbacks=[model_checkpoint])
-trainer.fit(model, train_loader, valid_loader)
+trainer.fit(model, train_loader, valid_labeled_loader)
 
-softmax = nn.Softmax(dim=-1)
-pred = []
-with tqdm(ascii=True, leave=False, total=len(valid_loader)) as bar:
-    for i, batch in enumerate(valid_loader):
+test_labeled["pred"] = predict_on_loader(valid_labeled_loader, model, device)
+test_labeled.to_csv("test_labeled_with_preds.csv", index=False)
 
-        images, y = batch["x"], batch["y"]
-        with torch.no_grad():
+# TODO
+# threshold tuning
+print("Metrics results on the test sample with weak labels:")
+display_metrics(test_labeled[args.target_column], test_labeled["pred"], threshold=0.5)
 
-            y_hat = model(images)
-            y_hat = softmax(y_hat)
-        
-        pred += y_hat[:, 1].tolist()
-        
-        bar.update()
+if args.validate:
 
-test["pred"] = pred
-test.to_csv("test.csv", index=False)
+    validation = pd.read_csv("labeled_part.csv")
+    validation["label"] = validation["label"].apply(lambda x: 1 if x == "logo" else 0)
 
-precision = precision_score(test.weak_label, test.pred > 0.5)
-recall = recall_score(test.weak_label, test.pred > 0.5)
-f1 = f1_score(test.weak_label, test.pred > 0.5)
-conf_matrix = confusion_matrix(test.weak_label, test.pred > 0.5)
-print(f"Precision = {precision:.4f}")
-print(f"Recall = {recall:.4f}")
-print(f"F1 = {f1:.4f}")
-print("Confusion matrix:")
-print(conf_matrix)
+    labeled_loader = get_loader(
+        validation,
+        "label",
+        valid_transform,
+        batch_size=args.batch_size,
+        num_workers=args.num_workers,
+        shuffle=False
+    )
+
+    validation["pred"] = predict_on_loader(labeled_loader, model, device)
+    print("Metrics results on the labeled sample with strong labels:")
+    display_metrics(validation["label"], validation["pred"], threshold=0.5)
+

@@ -14,9 +14,12 @@ class LabelSmoothingLoss(nn.Module):
     def forward(self, pred, target):
         pred = pred.log_softmax(dim=self.dim)
         with torch.no_grad():
-            smoothed = torch.zeros_like(pred)
-            smoothed.fill_(self.smoothing / (self.num_classes-1))
-            smoothed.scatter_(1, target.unsqueeze(1), self.confidence)
+            if target.dim() == 1:
+                smoothed = torch.zeros_like(pred)
+                smoothed.fill_(self.smoothing / (self.num_classes-1))
+                smoothed.scatter_(1, target.unsqueeze(1), self.confidence)
+            else:
+                smoothed = target * self.confidence + (1-target) * self.smoothing / (self.num_classes-1)
         if self.weight is not None:
             loss = -torch.mean((smoothed * pred) @ self.weight.to(pred.device))
         else:
